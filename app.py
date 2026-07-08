@@ -2066,9 +2066,18 @@ elif module.key == "market_share":
                             f"{len(report['platforms'])} platforms")
             st.session_state["ms_report"] = report
             st.session_state["ms_listings"] = listings
+            st.session_state["ms_cov"] = cov
 
         report = st.session_state.get("ms_report")
         if report:
+            # ── fetch-mode diagnostic (proxy on/off + per-platform counts) ──
+            _cov = st.session_state.get("ms_cov", {})
+            _proxy = ("ScraperAPI proxy ✅" if _ss.SCRAPER_API_KEY
+                      else "direct — no proxy key (cloud sites may block Nykaa/Myntra/Flipkart)")
+            if _cov:
+                _cnts = " · ".join(f"{p}: {sum(v.values())}" for p, v in _cov.items())
+                st.caption(f"🌐 Fetch mode: **{_proxy}**  ·  listings pulled — {_cnts}")
+
             dec = next((s for s in report["scorecard"] if s.get("is_baseline")), {})
             leader = report["share_of_shelf"][0] if report["share_of_shelf"] else {}
             st.markdown(f"""

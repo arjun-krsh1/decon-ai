@@ -22,7 +22,12 @@ import json
 import time
 import hashlib
 import pathlib
+import http.client
 from urllib.parse import quote_plus
+
+# Some marketplaces (Nykaa) return >100 response headers via ScraperAPI; Python's
+# default cap (100) makes `requests` raise "got more than 100 headers". Lift it.
+http.client._MAXHEADERS = 1000  # type: ignore[attr-defined]
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -54,16 +59,24 @@ def _fetch(url):
     Flipkart work on a cloud host whose datacenter IP those sites block. With no key
     it falls back to Scrapling's direct stealth HTTP, so local behaviour is unchanged.
     """
-    from scrapling.fetchers import Fetcher
+    # ── ScraperAPI path (cloud): plain requests — ScraperAPI handles the stealth ──
     if SCRAPER_API_KEY:
+        import requests
         target = (f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}"
                   f"&url={quote_plus(url)}&country_code={SCRAPER_API_COUNTRY}")
-        timeout = 70
-    else:
-        target = url
-        timeout = 30
+        try:
+            r = requests.get(target, timeout=90)
+            if r.status_code == 200 and r.text:
+                return r.text
+            print(f"    [shelf] scraperapi {url[:45]} -> HTTP {r.status_code}: {r.text[:100]}")
+        except Exception as e:
+            print(f"    [shelf] scraperapi error {url[:45]}: {e}")
+        return ""
+
+    # ── direct path (local): Scrapling stealth HTTP ──
+    from scrapling.fetchers import Fetcher
     try:
-        p = Fetcher.get(target, stealthy_headers=True, timeout=timeout)
+        p = Fetcher.get(url, stealthy_headers=True, timeout=30)
         if p.status == 200:
             return p.html_content or ""
         print(f"    [shelf] fetch {url[:50]} -> HTTP {p.status}")
