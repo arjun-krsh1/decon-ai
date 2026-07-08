@@ -1,0 +1,32 @@
+# Render blueprint for Decon AI (Streamlit).
+# In Render: New + → "Blueprint" → point at this repo → it reads this file.
+# Secrets (sync:false) are typed into the Render dashboard, never committed.
+
+services:
+  - type: web
+    name: decon-ai
+    runtime: python
+    plan: free              # change to "starter" (~$7/mo) for always-on (no cold-start sleep)
+    region: singapore       # closest to India; or "oregon"/"frankfurt"
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    autoDeploy: true        # redeploys on every git push
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.4"     # Render's newest; wheels exist for every pinned package
+      - key: LLM_PROVIDER
+        value: groq
+      # ── secrets: set the VALUES in the Render dashboard (Environment tab) ──
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SERPAPI_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MAGNIFIC_API_KEY
+        sync: false
+      # Optional (only if you use these paths):
+      - key: APIFY_KEY
+        sync: false
+      - key: GSC_SA_JSON
+        sync: false

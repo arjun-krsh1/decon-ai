@@ -1,0 +1,30 @@
+# ── secrets — NEVER commit these ──
+.env
+.env.*
+*.pem
+*.key
+# Google service-account keys (incl. the one shared earlier — rotate it!)
+*service-account*.json
+*iam.gserviceaccount*.json
+round-kit-*.json
+.streamlit/secrets.toml
+
+# ── python / venv ──
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ── runtime caches & generated artefacts (regenerate at runtime) ──
+.cache/
+scraper/cache/
+scratchpad/
+*.xlsx
+search_report.html
+
+# ── logs ──
+*.log
+
+# ── OS / editor ──
+.DS_Store
+Thumbs.db

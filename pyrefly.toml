@@ -1,0 +1,10 @@
+# Pyrefly config — makes the type checker use this project's virtualenv
+# so third-party imports (streamlit, requests, bs4, dotenv, ...) resolve.
+python-interpreter = ".venv/Scripts/python.exe"
+
+project-includes = ["**/*.py"]
+project-excludes = [
+    ".venv/**",
+    "**/__pycache__/**",
+    "scraper/cache/**",
+]
