@@ -17,15 +17,23 @@ no estimation. Missing fields are left empty (never fabricated).
 
 from __future__ import annotations
 
+import os
 import json
 import time
 import hashlib
 import pathlib
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 load_dotenv()
 
 from amazon_scraper import search_amazon, match_competitor, safe_number
+
+# When set, Nykaa/Myntra/Flipkart requests route through ScraperAPI's residential
+# proxies — needed on cloud hosts whose datacenter IPs those sites block. Unset
+# (e.g. locally) → direct stealth HTTP, so local behaviour is unchanged.
+SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY", "")
+SCRAPER_API_COUNTRY = os.getenv("SCRAPER_API_COUNTRY", "in")
 
 CACHE = pathlib.Path("scraper/cache/shelf")
 CACHE.mkdir(parents=True, exist_ok=True)
@@ -39,12 +47,26 @@ DEFAULT_CATEGORIES = [
 
 
 def _fetch(url):
-    """Fast, browser-impersonating HTTP GET via Scrapling. Returns HTML or ''."""
+    """Fast HTTP GET returning HTML (or '').
+
+    If SCRAPER_API_KEY is set, the request is proxied through ScraperAPI (rotating
+    residential IPs + anti-bot bypass, India geo) — this is what makes Nykaa/Myntra/
+    Flipkart work on a cloud host whose datacenter IP those sites block. With no key
+    it falls back to Scrapling's direct stealth HTTP, so local behaviour is unchanged.
+    """
     from scrapling.fetchers import Fetcher
+    if SCRAPER_API_KEY:
+        target = (f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}"
+                  f"&url={quote_plus(url)}&country_code={SCRAPER_API_COUNTRY}")
+        timeout = 70
+    else:
+        target = url
+        timeout = 30
     try:
-        p = Fetcher.get(url, stealthy_headers=True, timeout=30)
+        p = Fetcher.get(target, stealthy_headers=True, timeout=timeout)
         if p.status == 200:
             return p.html_content or ""
+        print(f"    [shelf] fetch {url[:50]} -> HTTP {p.status}")
     except Exception as e:
         print(f"    [shelf] fetch error {url[:50]}: {e}")
     return ""

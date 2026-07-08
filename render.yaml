@@ -25,6 +25,9 @@ services:
         sync: false
       - key: MAGNIFIC_API_KEY
         sync: false
+      # Makes Nykaa/Myntra/Flipkart scraping work from Render's datacenter IP:
+      - key: SCRAPER_API_KEY
+        sync: false
       # Optional (only if you use these paths):
       - key: APIFY_KEY
         sync: false
