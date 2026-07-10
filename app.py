@@ -14,6 +14,16 @@ Run with: python -m streamlit run app.py
 
 import json
 import streamlit as st
+
+# ── Streamlit Community Cloud: copy st.secrets → os.environ BEFORE importing
+#    modules/llm (they read os.getenv at import time). No-op on Render/local,
+#    where keys already come from environment variables / .env.
+try:
+    for _k, _v in st.secrets.items():
+        os.environ.setdefault(_k, str(_v))
+except Exception:
+    pass
+
 from modules import MODULES
 from llm import llm_available, DEMO_SAFE
 from dotenv import load_dotenv
