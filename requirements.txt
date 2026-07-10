@@ -28,6 +28,9 @@ google-api-python-client==2.198.0
 google-auth==2.55.1
 google-auth-oauthlib==1.4.0
 
+# ── Comp's Nemesis: Postgres store (Supabase/Neon) ──
+psycopg[binary]==3.3.4
+
 # ── optional/lazy data sources (kept for full local↔hosted parity;
 #    each is imported lazily and gated, so they never run unless invoked) ──
 pytrends==4.9.2

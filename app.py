@@ -2358,3 +2358,101 @@ elif module.key == "market_share":
             st.caption("ⓘ Seasonality note: this export's daily tab is totals, so per-category seasonal curves need "
                        "category-segmented exports (documented in the Excel's Methodology tab). Full detail — "
                        "all queries, pages, intent, geo, devices — is in the downloadable Excel.")
+
+elif module.key == "comps_nemesis":
+    from comps_nemesis import db as _cndb, changes as _cnch, report as _cnrep
+    import pandas as _pd
+
+    st.markdown("#### 🥷 Comp's Nemesis — competitor intelligence")
+    st.caption("Built entirely from PUBLIC data — each brand's own Shopify storefront. A robot collects a "
+               "fresh snapshot every 2 days; everything is benchmarked against Deconstruct and every row "
+               "traces to a public URL. The team does nothing — just read.")
+
+    @st.cache_data(ttl=600, show_spinner="Reading competitor database…")
+    def _cn_load():
+        return _cndb.latest_two()
+
+    try:
+        (prev_date, prev_cat), (curr_date, curr_cat) = _cn_load()
+        db_ok = True
+    except Exception as e:
+        db_ok, curr_cat, curr_date, prev_cat, prev_date = False, {}, None, None, None
+        st.error(f"Can't reach the competitor database — check DATABASE_URL in the app secrets. ({str(e)[:120]})")
+
+    if db_ok and not curr_cat:
+        st.info("No snapshots collected yet. The automatic collector runs every 2 days — the first snapshot "
+                "will appear here right after it runs. (An admin can trigger the first run from the GitHub "
+                "Action's 'Run workflow' button.)")
+    elif db_ok:
+        bench = _cnch.benchmark(curr_cat)
+        diffs = _cnch.diff_all(prev_cat, curr_cat) if prev_cat else {}
+        summ = _cnch.summarize(diffs) if diffs else {"total_launches": 0, "total_removals": 0}
+        total_products = sum(len(v) for v in curr_cat.values())
+
+        st.markdown(f"""<div class="metrics">
+            <div class="metric"><div class="metric-val">{len(curr_cat)}</div><div class="metric-label">Brands tracked</div></div>
+            <div class="metric"><div class="metric-val">{total_products:,}</div><div class="metric-label">Products monitored</div></div>
+            <div class="metric"><div class="metric-val">{summ['total_launches']}</div><div class="metric-label">New launches</div><div class="metric-sub">since {prev_date or '—'}</div></div>
+            <div class="metric"><div class="metric-val" style="font-size:17px;">{curr_date}</div><div class="metric-label">Latest snapshot</div></div>
+        </div>""", unsafe_allow_html=True)
+
+        if not prev_cat:
+            st.info(f"📸 Baseline captured {curr_date}. Change-tracking (launches, price moves, stock flips) "
+                    "activates automatically after the next collection (≤ 2 days).")
+
+        xls = _cnrep.build_excel(curr_cat, diffs, bench, prev_date, curr_date)
+        st.download_button("📥 Download full report (Excel)", data=xls,
+                           file_name=f"comps_nemesis_{curr_date}.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           type="primary", key="cn_dl")
+
+        if prev_cat:
+            launches = [x for b in diffs for x in diffs[b]["launches"]]
+            st.markdown(f"##### 🆕 New launches since {prev_date} · {len(launches)} found")
+            if launches:
+                st.dataframe(_pd.DataFrame([{
+                    "Brand": x["brand"], "Product": x["title"], "₹": x["price"],
+                    "Type": x["product_type"], "Published": x["published_at"], "Source": x["url"]}
+                    for x in launches]), use_container_width=True, hide_index=True)
+            else:
+                st.caption("No new products since the last snapshot.")
+
+            cca, ccb = st.columns(2)
+            with cca:
+                pm = [x for b in diffs for x in diffs[b]["price_changes"] if not x.get("noise")]
+                st.markdown(f"##### 💰 Price moves · {len(pm)}")
+                if pm:
+                    st.dataframe(_pd.DataFrame([{
+                        "Brand": x["brand"], "Product": x["title"][:32],
+                        "Old ₹": x["old_price"], "New ₹": x["new_price"], "Δ%": x["delta_pct"]}
+                        for x in pm]), use_container_width=True, hide_index=True)
+                else:
+                    st.caption("None.")
+            with ccb:
+                sf = [x for b in diffs for x in diffs[b]["stock_changes"]]
+                st.markdown(f"##### 📦 Stock flips · {len(sf)}")
+                if sf:
+                    st.dataframe(_pd.DataFrame([{
+                        "Brand": x["brand"], "Product": x["title"][:32], "Event": x["event"]}
+                        for x in sf]), use_container_width=True, hide_index=True)
+                else:
+                    st.caption("None.")
+
+        st.markdown("##### 🏁 Catalog benchmark (Deconstruct = baseline, top row)")
+        st.dataframe(_pd.DataFrame(bench).drop(columns=["is_baseline"]).rename(columns={
+            "brand": "Brand", "products": "Products", "avg_price": "Avg ₹",
+            "on_discount_%": "On discount %", "avg_discount_%": "Avg discount %",
+            "out_of_stock": "Out of stock", "newest_launch": "Newest launch"}),
+            use_container_width=True, hide_index=True)
+
+        with st.expander("ⓘ Data Source Transparency — where every number comes from"):
+            st.markdown(
+                "- **Source:** each brand's own **public Shopify storefront JSON** (`/products.json`) — the exact "
+                "data their website serves. No logins, no grey-hat scraping.\n"
+                "- **Verifiable:** every row carries its **public product URL** — open it to check any figure.\n"
+                "- **Launches / removals:** product handles that appear / disappear between snapshots.\n"
+                "- **Price / discount / stock:** the same product's fields changing between snapshots.\n"
+                "- **Cadence:** a GitHub Action collects a snapshot **every 2 days**, automatically; comparisons "
+                "appear from the second snapshot onward.\n"
+                "- **Junk SKUs** (₹1 promos, gift cards, testers) are flagged out of price stats, kept for launches.\n"
+                "- **Baseline:** Deconstruct.")
