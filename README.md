@@ -3,10 +3,9 @@ title: Decon AI — Market Intelligence Engine
 emoji: 🧬
 colorFrom: green
 colorTo: gray
-sdk: streamlit
-app_file: app.py
+sdk: docker
+app_port: 8501
 pinned: false
-python_version: "3.12"
 ---
 
 # 🧬 Decon AI — Market Intelligence Engine

@@ -1,0 +1,11 @@
+.venv/
+.env
+.env.*
+.git/
+__pycache__/
+*.pyc
+scraper/cache/
+.cache/
+*.log
+*.xlsx
+search_report.html
