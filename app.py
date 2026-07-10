@@ -2368,15 +2368,22 @@ elif module.key == "comps_nemesis":
                "fresh snapshot every 2 days; everything is benchmarked against Deconstruct and every row "
                "traces to a public URL. The team does nothing — just read.")
 
-    @st.cache_data(ttl=600, show_spinner="Reading competitor database…")
-    def _cn_load():
-        return _cndb.latest_two()
+    # Heavy work (DB read + diff + styled Excel) runs ONCE and is cached — never
+    # rebuilt per rerun. This is what keeps the ~1 GB host from OOM/segfaulting.
+    @st.cache_data(ttl=1800, show_spinner="Analysing competitor data…")
+    def _cn_report():
+        (pdt, pc), (cdt, cc) = _cndb.latest_two()
+        bench = _cnch.benchmark(cc) if cc else []
+        diffs = _cnch.diff_all(pc, cc) if (pc and cc) else {}
+        xls = _cnrep.build_excel(cc, diffs, bench, pdt, cdt) if cc else b""
+        return pdt, (pc or {}), cdt, (cc or {}), bench, diffs, xls
 
+    db_ok = True
     try:
-        (prev_date, prev_cat), (curr_date, curr_cat) = _cn_load()
-        db_ok = True
+        prev_date, prev_cat, curr_date, curr_cat, bench, diffs, xls = _cn_report()
     except Exception as e:
-        db_ok, curr_cat, curr_date, prev_cat, prev_date = False, {}, None, None, None
+        db_ok = False
+        prev_date, prev_cat, curr_date, curr_cat, bench, diffs, xls = None, {}, None, {}, [], {}, b""
         st.error(f"Can't reach the competitor database — check DATABASE_URL in the app secrets. ({str(e)[:120]})")
 
     if db_ok and not curr_cat:
@@ -2384,8 +2391,6 @@ elif module.key == "comps_nemesis":
                 "will appear here right after it runs. (An admin can trigger the first run from the GitHub "
                 "Action's 'Run workflow' button.)")
     elif db_ok:
-        bench = _cnch.benchmark(curr_cat)
-        diffs = _cnch.diff_all(prev_cat, curr_cat) if prev_cat else {}
         summ = _cnch.summarize(diffs) if diffs else {"total_launches": 0, "total_removals": 0}
         total_products = sum(len(v) for v in curr_cat.values())
 
@@ -2400,7 +2405,6 @@ elif module.key == "comps_nemesis":
             st.info(f"📸 Baseline captured {curr_date}. Change-tracking (launches, price moves, stock flips) "
                     "activates automatically after the next collection (≤ 2 days).")
 
-        xls = _cnrep.build_excel(curr_cat, diffs, bench, prev_date, curr_date)
         st.download_button("📥 Download full report (Excel)", data=xls,
                            file_name=f"comps_nemesis_{curr_date}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

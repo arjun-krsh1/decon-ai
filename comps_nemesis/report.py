@@ -205,13 +205,15 @@ def build_excel(curr: dict, diffs: dict, bench: list, prev_date, curr_date) -> b
                   [("brand", "Brand", 18), ("title", "Product", 44), ("price", "₹", 9), ("url", "Source", 52)],
                   _flat(diffs, "removals", ["brand", "title", "price", "url"]))
 
+    # cap per brand so the styled workbook stays memory-safe on a small host
     catalog = [{"brand": p["brand"], "title": p["title"], "product_type": p["product_type"],
                 "price": p["price"], "mrp": p["mrp"], "discount_pct": p["discount_pct"],
                 "available": p["available"], "published_at": p["published_at"], "url": p["url"]}
-               for prods in (curr or {}).values() for p in prods]
-    X._data_sheet(wb, "Full Catalog", "Full Catalog — every tracked product",
-                  "The complete monitored catalog across all brands — the raw evidence behind every other tab.",
-                  "Every live product from each brand's public /products.json.",
+               for prods in (curr or {}).values() for p in prods[:150]]
+    X._data_sheet(wb, "Full Catalog", "Full Catalog — tracked products",
+                  "The monitored catalog across all brands — the raw evidence behind every other tab "
+                  "(up to 150 products per brand; the complete catalog always lives in the database).",
+                  "Live products from each brand's public /products.json.",
                   "First-party public data; each row's Source is its public URL.",
                   [("brand", "Brand", 18), ("title", "Product", 42), ("product_type", "Type", 18),
                    ("price", "₹", 9), ("mrp", "MRP", 9), ("discount_pct", "Discount %", 11),
