@@ -2378,6 +2378,12 @@ elif module.key == "comps_nemesis":
         xls = _cnrep.build_excel(cc, diffs, bench, pdt, cdt) if cc else b""
         return pdt, (pc or {}), cdt, (cc or {}), bench, diffs, xls
 
+    _rc = st.columns([1, 4])[0]
+    if _rc.button("🔄 Refresh", key="cn_refresh",
+                  help="Pull the newest snapshot from the database (re-reads only — no scraping, no manual work)"):
+        _cn_report.clear()
+        st.rerun()
+
     db_ok = True
     try:
         prev_date, prev_cat, curr_date, curr_cat, bench, diffs, xls = _cn_report()
