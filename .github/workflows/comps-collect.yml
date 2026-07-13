@@ -1,10 +1,11 @@
 name: Comps Nemesis — collect snapshot
 
-# Runs automatically every 2 days (~06:00 UTC). No manual work for the team.
-# "workflow_dispatch" lets an admin trigger it once by hand (e.g. the first run).
+# Runs automatically once a day (~06:00 UTC). No manual work for the team.
+# Shopify collection is free, so daily catches launches within 24h at no cost.
+# "workflow_dispatch" also lets an admin trigger it by hand anytime.
 on:
   schedule:
-    - cron: "0 6 */2 * *"
+    - cron: "0 6 * * *"
   workflow_dispatch: {}
 
 jobs:

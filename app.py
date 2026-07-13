@@ -2360,7 +2360,7 @@ elif module.key == "market_share":
                        "all queries, pages, intent, geo, devices — is in the downloadable Excel.")
 
 elif module.key == "comps_nemesis":
-    from comps_nemesis import db as _cndb, changes as _cnch, report as _cnrep
+    from comps_nemesis import db as _cndb, changes as _cnch, report as _cnrep, snapshots as _cnsnap
     import pandas as _pd
 
     st.markdown("#### 🥷 Comp's Nemesis — competitor intelligence")
@@ -2378,11 +2378,29 @@ elif module.key == "comps_nemesis":
         xls = _cnrep.build_excel(cc, diffs, bench, pdt, cdt) if cc else b""
         return pdt, (pc or {}), cdt, (cc or {}), bench, diffs, xls
 
-    _rc = st.columns([1, 4])[0]
-    if _rc.button("🔄 Refresh", key="cn_refresh",
-                  help="Pull the newest snapshot from the database (re-reads only — no scraping, no manual work)"):
+    rcol1, rcol2 = st.columns([1, 3])
+    if rcol1.button("🔄 Refresh", key="cn_refresh",
+                    help="Re-read the latest snapshot from the database (no scraping)"):
         _cn_report.clear()
         st.rerun()
+    with rcol2.expander("⚠️ Run a fresh analysis now (use with caution)"):
+        st.caption("Triggers a LIVE scrape of all 11 brands and stores a new snapshot in the database "
+                   "(~2 minutes). This normally runs automatically every day — use this only if you need "
+                   "up-to-the-minute data right now.")
+        if st.button("▶ Run fresh analysis now", key="cn_runnow"):
+            _prog = st.progress(0)
+            _stat = st.empty()
+
+            def _cn_cb(i, n, b):
+                _prog.progress(min(int(i / max(n, 1) * 100), 100))
+                _stat.write(f"Collecting {b} … ({i}/{n})")
+
+            with st.spinner("Scraping competitor catalogs — please wait ~2 min…"):
+                _cats = _cnsnap.collect_all(progress_cb=_cn_cb)
+                _sdate, _srows = _cndb.write_snapshot(_cats)
+            _cn_report.clear()
+            st.success(f"✓ Stored snapshot {_sdate} ({_srows:,} products). Reloading…")
+            st.rerun()
 
     db_ok = True
     try:
