@@ -10,7 +10,7 @@ Needs env var DATABASE_URL (Postgres). SCRAPER_API_KEY is optional (proxy fallba
 
 import sys
 
-from comps_nemesis import snapshots, db
+from comps_nemesis import snapshots, db, shopify
 
 
 def _progress(i, n, brand):
@@ -25,6 +25,10 @@ def main():
     counts = ", ".join(f"{b}:{len(v)}" for b, v in catalogs.items())
     print(f"\n✓ snapshot {date} written — {rows} product rows across {len(catalogs)} brands")
     print(f"  {counts}", flush=True)
+    s = shopify.FETCH_STATS
+    print(f"  API cost this run — direct (FREE): {s['direct']} | "
+          f"ScraperAPI (PAID credits): {s['proxy']} | failed: {s['fail']}", flush=True)
+    print("  SerpAPI: 0 (Comp's Nemesis never uses SerpAPI)", flush=True)
     if rows == 0:
         print("!! no rows collected", file=sys.stderr)
         sys.exit(1)

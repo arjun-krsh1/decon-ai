@@ -29,11 +29,17 @@ _UA = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
                       "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")}
 
 
+# Per-run fetch accounting: how many pages went out FREE (direct) vs. through
+# PAID ScraperAPI credits. proxy == 0 means the run spent zero ScraperAPI credits.
+FETCH_STATS = {"direct": 0, "proxy": 0, "fail": 0}
+
+
 def _get(url: str, timeout: int = 45) -> str:
-    """Public GET returning text (''). Direct first; ScraperAPI fallback if blocked."""
+    """Public GET returning text (''). Direct (free) first; ScraperAPI fallback if blocked."""
     try:
         r = requests.get(url, headers=_UA, timeout=timeout, allow_redirects=True)
         if r.status_code == 200:
+            FETCH_STATS["direct"] += 1
             return r.text
     except Exception:
         pass
@@ -43,9 +49,11 @@ def _get(url: str, timeout: int = 45) -> str:
                     f"&url={quote_plus(url)}&country_code=in")
             r = requests.get(prox, timeout=90)
             if r.status_code == 200:
+                FETCH_STATS["proxy"] += 1
                 return r.text
         except Exception:
             pass
+    FETCH_STATS["fail"] += 1
     return ""
 
 
